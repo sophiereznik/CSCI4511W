@@ -1,5 +1,6 @@
 <!DOCTYPE html>
 <html>
+
 <head>
   <meta charset="utf-8">
   <title>2048</title>
@@ -7,15 +8,17 @@
   <link href="style/main.css" rel="stylesheet" type="text/css">
   <link rel="shortcut icon" href="favicon.ico">
   <link rel="apple-touch-icon" href="meta/apple-touch-icon.png">
-  <link rel="apple-touch-startup-image" href="meta/apple-touch-startup-image-640x1096.png" media="(device-width: 320px) and (device-height: 568px) and (-webkit-device-pixel-ratio: 2)"> <!-- iPhone 5+ -->
-  <link rel="apple-touch-startup-image" href="meta/apple-touch-startup-image-640x920.png"  media="(device-width: 320px) and (device-height: 480px) and (-webkit-device-pixel-ratio: 2)"> <!-- iPhone, retina -->
+  <link rel="apple-touch-startup-image" href="meta/apple-touch-startup-image-640x1096.png"
+    media="(device-width: 320px) and (device-height: 568px) and (-webkit-device-pixel-ratio: 2)">
+  <link rel="apple-touch-startup-image" href="meta/apple-touch-startup-image-640x920.png"
+    media="(device-width: 320px) and (device-height: 480px) and (-webkit-device-pixel-ratio: 2)">
   <meta name="apple-mobile-web-app-capable" content="yes">
   <meta name="apple-mobile-web-app-status-bar-style" content="black">
-
   <meta name="HandheldFriendly" content="True">
   <meta name="MobileOptimized" content="320">
-  <meta name="viewport" content="width=device-width, target-densitydpi=160dpi, initial-scale=1.0, maximum-scale=1, user-scalable=no, minimal-ui">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
 </head>
+
 <body>
   <div class="container">
     <div class="heading">
@@ -34,7 +37,7 @@
       <div class="game-message">
         <p></p>
         <div class="lower">
-	        <a class="keep-playing-button">Keep going</a>
+          <a class="keep-playing-button">Keep going</a>
           <a class="retry-button">Try again</a>
         </div>
       </div>
@@ -66,20 +69,112 @@
         </div>
       </div>
 
-      <div class="tile-container">
-
-      </div>
+      <div class="tile-container"></div>
     </div>
+
     <p>
- 
-    <hr>
-    Project Members <a>Muhammad Bilal | Abdul Wahab | Hamza Javed</a>.
+      <hr>
+      Project Members <a>Muhammad Bilal | Abdul Wahab | Hamza Javed</a>.
     </p>
   </div>
 
   <script src="js/mini.js"></script>
 
+  <script>
+    window.addEventListener("load", function () {
+      const stats = {
+        totalGames: 0,
+        totalScore: 0,
+        bestScore: 0,
+        bestTile: 0,
+        startTime: Date.now(),
+        gameStartTime: Date.now(),
+        durations: [],
+        log: []
+      };
 
+      const getHighestTile = (grid) => {
+        let max = 0;
+        grid.cells.forEach(row => {
+          row.forEach(cell => {
+            if (cell && cell.value > max) max = cell.value;
+          });
+        });
+        return max;
+      };
+
+      const autoPlayLoop = () => {
+        const elapsed = Date.now() - stats.startTime;
+        if (elapsed >= 60 * 60 * 1000) {
+          console.log("1 hour completed!");
+          console.log(`Games played: ${stats.totalGames}`);
+          console.log(`Average score: ${(stats.totalScore / stats.totalGames).toFixed(2)}`);
+          console.log(`Best score: ${stats.bestScore}`);
+          console.log(`Highest tile: ${stats.bestTile}`);
+
+          const avgDuration = stats.durations.reduce((a, b) => a + b, 0) / stats.durations.length;
+          console.log(`Average game duration: ${avgDuration.toFixed(2)} seconds`);
+
+          console.log("Full Game Log:");
+          console.table(stats.log);
+          downloadCSVFromStats(stats);
+          return;
+        }
+
+        if (gameManager.isGameTerminated()) {
+          const score = gameManager.score;
+          const maxTile = getHighestTile(gameManager.grid);
+
+          const gameEndTime = Date.now();
+          const gameDuration = (gameEndTime - stats.gameStartTime) / 1000;
+          stats.durations.push(gameDuration);
+          stats.gameStartTime = gameEndTime;
+
+          stats.totalGames++;
+          stats.totalScore += score;
+          stats.bestScore = Math.max(stats.bestScore, score);
+          stats.bestTile = Math.max(stats.bestTile, maxTile);
+
+          stats.log.push({
+            Game: stats.totalGames,
+            Score: score,
+            "Highest Tile": maxTile,
+            "Duration (s)": gameDuration.toFixed(2)
+          });
+
+          gameManager.restart();
+          gameManager.keepPlaying = true;
+        }
+
+        const move = gameManager.getBestMove(gameManager.grid, 4);
+        gameManager.move(move);
+
+        setTimeout(autoPlayLoop, 20);
+      };
+
+      function downloadCSVFromStats(stats) {
+        const headers = ["Game", "Score", "Highest Tile", "Duration (s)"];
+        const rows = stats.log.map(game => [game.Game, game.Score, game["Highest Tile"], game["Duration (s)"]]);
+
+        let csvContent = "data:text/csv;charset=utf-8," + [headers, ...rows]
+          .map(e => e.join(","))
+          .join("\n");
+
+        const encodedUri = encodeURI(csvContent);
+        const link = document.createElement("a");
+        link.setAttribute("href", encodedUri);
+        link.setAttribute("download", "2048_game_stats.csv");
+        document.body.appendChild(link);
+        link.click();
+        document.body.removeChild(link);
+      }
+
+      // Start after game loads
+      gameManager.keepPlaying = true;
+      autoPlayLoop();
+    });
+  </script>
 
 </body>
+
 </html>
